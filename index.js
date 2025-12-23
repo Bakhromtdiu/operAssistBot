@@ -1,9 +1,9 @@
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf } from "telegraf";
 import fs from "fs";
 import { google } from "googleapis";
-import { handleRequest } from "./sheets.js"; // adjust if your function name is different
+import { handleRequest } from "./sheets.js"; // adjust if needed
 
-// Recreate service account file from Render environment variable
+// Recreate service account file from base64 env variable
 if (process.env.SERVICE_ACCOUNT_JSON) {
   const json = Buffer.from(process.env.SERVICE_ACCOUNT_JSON, "base64").toString();
   fs.writeFileSync("service-account.json", json);
@@ -17,18 +17,19 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: "v4", auth });
 
-// Telegram bot
-const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
+// Telegram bot setup
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Example: forward all messages to your sheets.js handler
-bot.on("message", async (msg) => {
+bot.on("text", async (ctx) => {
   try {
-    const response = await handleRequest(sheets, msg);
+    const response = await handleRequest(sheets, ctx.message);
     if (response) {
-      bot.sendMessage(msg.chat.id, response);
+      await ctx.reply(response);
     }
   } catch (err) {
-    console.error("Error:", err);
-    bot.sendMessage(msg.chat.id, "An error occurred.");
+    console.error("Bot error:", err);
+    await ctx.reply("An error occurred.");
   }
 });
+
+bot.launch();
